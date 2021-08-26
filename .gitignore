@@ -1,0 +1,6 @@
+# Rust.
+target/
+**/*.rs.bk
+
+# DS BIOS/firmware dumps.
+/system/
