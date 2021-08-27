@@ -4,7 +4,9 @@ use std::mem;
 ///
 /// Loaded from `0x00` in ROM to `0x27FFE00` on power-up.
 ///
-/// <https://problemkaputt.de/gbatek.htm#dscartridgesencryptionfirmware>
+/// # Sources
+///
+/// \[1\]: <https://problemkaputt.de/gbatek.htm#dscartridgeheader>
 #[repr(C)]
 pub struct Header {
     /// Game title.
