@@ -215,6 +215,17 @@ pub struct Header {
 static_assert!(mem::size_of::<Header>() == 512);
 
 impl Header {
+    fn calc_nintendo_logo_crc16(&self) -> u16 {
+        common::util::crc16(&self.nintendo_logo)
+    }
+
+    fn calc_header_crc16(&self) -> u16 {
+        let ptr = self as *const Header as *const u8;
+        let bytes = unsafe { std::slice::from_raw_parts(ptr, 0x15E) };
+
+        common::util::crc16(bytes)
+    }
+
     /// Returns the device capacity in bytes.
     pub fn device_capacity_bytes(&self) -> usize {
         (128 * 1024) << self.device_capacity
@@ -222,6 +233,12 @@ impl Header {
 
     #[rustfmt::skip]
     pub fn dump<W: Write>(&self, w: &mut W) -> fmt::Result {
+        macro_rules! none_if_0 {
+            ($value:expr) => {
+                if $value == 0 { " (None)" } else { "" }
+            };
+        }
+
         writeln!(w, "0x000  Game title                          {}", self.game_title)?;
         writeln!(w, "0x00C  Game code                           {}", self.game_code)?;
         writeln!(w, "0x010  Maker code                          {}", self.maker_code)?;
@@ -256,8 +273,7 @@ impl Header {
         writeln!(w, "0x060  Normal commands settings            {:#010X}", self.normal_command_settings)?;
         writeln!(w, "0x064  KEY1 commands settings              {:#010X}", self.key1_command_settings)?;
 
-        let banner_info = if self.banner_offset == 0 { " (None)" } else { "" };
-        writeln!(w, "0x068  Banner offset                       {:#X}{}", self.banner_offset, banner_info)?;
+        writeln!(w, "0x068  Banner offset                       {:#X}{}", self.banner_offset, none_if_0!(self.banner_offset))?;
 
         writeln!(w, "0x06C  Secure area checksum                {:#06X}", self.secure_area_crc16)?;
         let delay_ms = self.secure_area_delay as f64 / 131.0;
@@ -268,11 +284,51 @@ impl Header {
 
         writeln!(w, "0x078  Secure area disable                 {:#018X}", self.secure_area_disable)?;
 
-        writeln!(w, "0x080  ROM size                            {:#X} ({})", self.rom_size, FileSize(self.rom_size as usize))?;
-        writeln!(w, "0x084  ROM header size                     {:#X} ({})", self.header_size, FileSize(self.header_size as usize))?;
+        writeln!(w, "0x080  ROM size                            {:#X}", self.rom_size)?;
+        writeln!(w, "0x084  ROM header size                     {:#X}", self.header_size)?;
 
         writeln!(w, "0x088  (4 bytes unknown)")?;
         writeln!(w, "0x08C  (8 bytes reserved)")?;
+
+        writeln!(w, "0x094  NAND end of ROM area                {:#06X}", self.nand_rom_end)?;
+        writeln!(w, "0x096  NAND start of RW area               {:#06X}", self.nand_rw_start)?;
+
+        writeln!(w, "0x098  (40 bytes reserved)")?;
+
+        struct CRC16 {
+            stored: u16,
+            calculated: u16,
+        }
+
+        impl fmt::Display for CRC16 {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                if self.stored == self.calculated {
+                    write!(f, "OK")
+                } else {
+                    write!(f, "INVALID {:#06X}", self.calculated)
+                }
+            }
+        }
+
+        let logo_crc16 = CRC16 {
+            stored: self.nintendo_logo_crc16,
+            calculated: self.calc_nintendo_logo_crc16(),
+        };
+        let header_crc16 = CRC16 {
+            stored: self.header_crc16,
+            calculated: self.calc_header_crc16(),
+        };
+
+        writeln!(w, "0x0C0  Nintendo logo (156 bytes)")?;
+        writeln!(w, "0x15C  Nintendo logo checksum              {:#06X} ({})", self.nintendo_logo_crc16, logo_crc16)?;
+        writeln!(w, "0x15E  Header checksum                     {:#06X} ({})", self.header_crc16, header_crc16)?;
+
+        writeln!(w, "0x160  Debug ROM offset                    {:#X}{}", self.debug_rom_offset, none_if_0!(self.debug_rom_offset))?;
+        writeln!(w, "0x164  Debug code size                     {:#X}{}", self.debug_size, none_if_0!(self.debug_size))?;
+        writeln!(w, "0x168  Debug RAM address                   {:#X}{}", self.debug_ram_address, none_if_0!(self.debug_ram_address))?;
+
+        writeln!(w, "0x16C  (4 bytes reserved)")?;
+        write!(w, "0x170  (144 bytes reserved)")?;
 
         Ok(())
     }
