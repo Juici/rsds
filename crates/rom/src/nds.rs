@@ -1,3 +1,5 @@
+use std::mem;
+
 /// NDS cartridge header.
 ///
 /// Loaded from `0x00` in ROM to `0x27FFE00` on power-up.
@@ -201,4 +203,4 @@ pub struct Header {
     reserved5: [u8; 144], // 0x170
 }
 
-// TODO: Static assert `size_of::<Header>() == 512`.
+static_assert!(mem::size_of::<Header>() == 512);
