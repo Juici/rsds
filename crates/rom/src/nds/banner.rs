@@ -18,6 +18,7 @@ use std::mem;
 /// # Sources
 ///
 /// \[1\]: <https://problemkaputt.de/gbatek.htm#dscartridgeicontitle>
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct Banner {
     /// Version.
