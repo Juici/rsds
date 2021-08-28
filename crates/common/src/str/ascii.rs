@@ -24,7 +24,7 @@ impl fmt::Display for AsciiError {
 /// An ASCII string with a fixed capacity, `N`.
 ///
 /// Terminated by `0x00` byte.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Eq)]
 #[repr(transparent)]
 pub struct Ascii<const N: usize> {
     chars: [u8; N],
@@ -129,8 +129,6 @@ impl<const N: usize> From<Ascii<N>> for [u8; N] {
         ascii.chars
     }
 }
-
-impl<const N: usize> Eq for Ascii<N> {}
 
 impl<const N: usize, const M: usize> PartialEq<Ascii<M>> for Ascii<N> {
     fn eq(&self, other: &Ascii<M>) -> bool {
