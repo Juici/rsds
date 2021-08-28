@@ -79,6 +79,14 @@ impl<const N: usize> Ascii<N> {
     }
 }
 
+#[inline]
+fn validate_ascii(chars: &[u8]) -> Result<(), AsciiError> {
+    match chars.iter().position(|&c| c > 0x7F) {
+        Some(valid_up_to) => Err(AsciiError { valid_up_to }),
+        None => Ok(()),
+    }
+}
+
 impl<const N: usize> fmt::Debug for Ascii<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.to_string_lossy().fmt(f)
@@ -122,10 +130,43 @@ impl<const N: usize> From<Ascii<N>> for [u8; N] {
     }
 }
 
-#[inline]
-fn validate_ascii(chars: &[u8]) -> Result<(), AsciiError> {
-    match chars.iter().position(|&c| c > 0x7F) {
-        Some(valid_up_to) => Err(AsciiError { valid_up_to }),
-        None => Ok(()),
+impl<const N: usize> Eq for Ascii<N> {}
+
+impl<const N: usize, const M: usize> PartialEq<Ascii<M>> for Ascii<N> {
+    fn eq(&self, other: &Ascii<M>) -> bool {
+        let self_len = self.len();
+        let other_len = other.len();
+
+        self_len == other_len && self.chars[..self_len] == other.chars[..other_len]
+    }
+}
+
+impl<const N: usize> PartialEq<str> for Ascii<N> {
+    fn eq(&self, other: &str) -> bool {
+        match self.to_str() {
+            Ok(s) => s == other,
+            Err(_) => false,
+        }
+    }
+}
+
+impl<const N: usize> PartialEq<&str> for Ascii<N> {
+    #[inline]
+    fn eq(&self, other: &&str) -> bool {
+        self == *other
+    }
+}
+
+impl<const N: usize> PartialEq<Ascii<N>> for str {
+    #[inline]
+    fn eq(&self, other: &Ascii<N>) -> bool {
+        other == self
+    }
+}
+
+impl<const N: usize> PartialEq<Ascii<N>> for &str {
+    #[inline]
+    fn eq(&self, other: &Ascii<N>) -> bool {
+        other == self
     }
 }
