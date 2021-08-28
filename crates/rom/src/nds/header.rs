@@ -1,4 +1,5 @@
 use std::fmt::{self, Write};
+use std::io;
 use std::mem;
 
 use common::str::Ascii;
@@ -6,7 +7,7 @@ use common::util::FileSize;
 
 // TODO: Add proper support for DSi headers.
 
-/// NDS cartridge header.
+/// NDS ROM header.
 ///
 /// Loaded from `0x00` in ROM to `0x27FFE00` on power-up.
 ///
@@ -212,12 +213,49 @@ pub struct Header {
     reserved5: [u8; 144], // 0x170
 }
 
-static_assert!(mem::size_of::<Header>() == 512);
+const HEADER_SIZE: usize = 512;
+
+static_assert!(mem::size_of::<Header>() == HEADER_SIZE);
 
 impl Header {
+    /// Reads a header from the given reader.
+    pub fn from_reader<R: io::Read>(mut reader: R) -> io::Result<Header> {
+        let mut header = [0; HEADER_SIZE];
+
+        // Read into the header buffer.
+        // We allow the reader to only partially fill the buffer and don't
+        // validate the header.
+        {
+            let mut buf = &mut header[..];
+            while !buf.is_empty() {
+                match reader.read(buf) {
+                    Ok(0) => break,
+                    Ok(n) => buf = &mut buf[n..],
+                    Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
+                    Err(e) => return Err(e),
+                }
+            }
+        }
+
+        // SAFETY: Any sequence of `HEADER_SIZE` bytes, is a valid representation.
+        Ok(unsafe { mem::transmute(header) })
+    }
+
     /// Returns the device capacity in bytes.
     pub fn device_capacity_bytes(&self) -> usize {
         (128 * 1024) << self.device_capacity
+    }
+
+    /// Computes the Nintendo logo checksum.
+    pub fn compute_logo_crc16(&self) -> u16 {
+        common::util::crc16(&self.nintendo_logo)
+    }
+
+    /// Computes the header checksum.
+    pub fn compute_header_crc16(&self) -> u16 {
+        let ptr = self as *const Header as *const u8;
+        let bytes = unsafe { std::slice::from_raw_parts(ptr, 0x15E) };
+        common::util::crc16(bytes)
     }
 
     /// Dumps the header info to the given writer.
@@ -302,11 +340,11 @@ impl Header {
 
         let logo_crc16 = CRC16 {
             stored: self.nintendo_logo_crc16,
-            calculated: self.calc_nintendo_logo_crc16(),
+            calculated: self.compute_logo_crc16(),
         };
         let header_crc16 = CRC16 {
             stored: self.header_crc16,
-            calculated: self.calc_header_crc16(),
+            calculated: self.compute_header_crc16(),
         };
 
         writeln!(w, "0x0C0  Nintendo logo (156 bytes)")?;
@@ -321,15 +359,5 @@ impl Header {
         write!(w, "0x170  (144 bytes reserved)")?;
 
         Ok(())
-    }
-
-    fn calc_nintendo_logo_crc16(&self) -> u16 {
-        common::util::crc16(&self.nintendo_logo)
-    }
-
-    fn calc_header_crc16(&self) -> u16 {
-        let ptr = self as *const Header as *const u8;
-        let bytes = unsafe { std::slice::from_raw_parts(ptr, 0x15E) };
-        common::util::crc16(bytes)
     }
 }
