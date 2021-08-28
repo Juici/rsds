@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fmt;
 
@@ -36,21 +37,57 @@ impl<const N: usize> Ascii<N> {
     }
 
     /// Returns the string content.
-    pub fn as_str(&self) -> &str {
+    pub fn to_str(&self) -> Result<&str, AsciiError> {
         let len = self.len();
-        unsafe { std::str::from_utf8_unchecked(&self.chars[..len]) }
+        let chars = &self.chars[..len];
+
+        validate_ascii(chars).map(|_| unsafe { std::str::from_utf8_unchecked(chars) })
+    }
+
+    /// Returns the string content, with invalid characters replaced by
+    /// [`U+FFFD REPLACEMENT CHARACTER`][U+FFFD], which looks like this: �.
+    ///
+    /// [U+FFFD]: char::REPLACEMENT_CHARACTER
+    pub fn to_string_lossy(&self) -> Cow<'_, str> {
+        let len = self.len();
+        let chars = &self.chars[..len];
+
+        match validate_ascii(chars) {
+            Ok(()) => Cow::Borrowed(unsafe { std::str::from_utf8_unchecked(chars) }),
+            Err(AsciiError { mut valid_up_to }) => {
+                const REPLACEMENT: &str = "\u{FFFD}";
+
+                let mut res = String::with_capacity(len);
+
+                let mut remaining = chars;
+                loop {
+                    let valid = unsafe { std::str::from_utf8_unchecked(&remaining[..valid_up_to]) };
+                    res.push_str(valid);
+                    res.push_str(REPLACEMENT);
+
+                    remaining = &remaining[(valid_up_to + 1)..];
+
+                    match validate_ascii(remaining) {
+                        Ok(()) => break,
+                        Err(err) => valid_up_to = err.valid_up_to,
+                    };
+                }
+
+                Cow::Owned(res)
+            }
+        }
     }
 }
 
 impl<const N: usize> fmt::Debug for Ascii<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.as_str().fmt(f)
+        self.to_string_lossy().fmt(f)
     }
 }
 
 impl<const N: usize> fmt::Display for Ascii<N> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.as_str().fmt(f)
+        self.to_string_lossy().fmt(f)
     }
 }
 
@@ -75,6 +112,13 @@ impl<const N: usize> TryFrom<&[u8]> for Ascii<N> {
         }
 
         validate_ascii(&chars).map(|_| Ascii { chars })
+    }
+}
+
+impl<const N: usize> From<Ascii<N>> for [u8; N] {
+    #[inline]
+    fn from(ascii: Ascii<N>) -> Self {
+        ascii.chars
     }
 }
 

@@ -215,22 +215,12 @@ pub struct Header {
 static_assert!(mem::size_of::<Header>() == 512);
 
 impl Header {
-    fn calc_nintendo_logo_crc16(&self) -> u16 {
-        common::util::crc16(&self.nintendo_logo)
-    }
-
-    fn calc_header_crc16(&self) -> u16 {
-        let ptr = self as *const Header as *const u8;
-        let bytes = unsafe { std::slice::from_raw_parts(ptr, 0x15E) };
-
-        common::util::crc16(bytes)
-    }
-
     /// Returns the device capacity in bytes.
     pub fn device_capacity_bytes(&self) -> usize {
         (128 * 1024) << self.device_capacity
     }
 
+    /// Dumps the header info to the given writer.
     #[rustfmt::skip]
     pub fn dump<W: Write>(&self, w: &mut W) -> fmt::Result {
         macro_rules! none_if_0 {
@@ -331,5 +321,15 @@ impl Header {
         write!(w, "0x170  (144 bytes reserved)")?;
 
         Ok(())
+    }
+
+    fn calc_nintendo_logo_crc16(&self) -> u16 {
+        common::util::crc16(&self.nintendo_logo)
+    }
+
+    fn calc_header_crc16(&self) -> u16 {
+        let ptr = self as *const Header as *const u8;
+        let bytes = unsafe { std::slice::from_raw_parts(ptr, 0x15E) };
+        common::util::crc16(bytes)
     }
 }
