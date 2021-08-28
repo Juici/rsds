@@ -7,7 +7,7 @@ use common::util::FileSize;
 
 // TODO: Add proper support for DSi headers.
 
-/// NDS ROM header.
+/// NDS cartridge header.
 ///
 /// Loaded from `0x00` in ROM to `0x27FFE00` on power-up.
 ///

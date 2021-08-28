@@ -1,6 +1,6 @@
 use std::mem;
 
-/// NDS ROM icon/title.
+/// NDS cartridge icon/title.
 ///
 /// The ROM offset is defined by [`banner_offset`] in [`Header`].
 ///
