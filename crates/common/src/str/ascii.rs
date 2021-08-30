@@ -33,7 +33,8 @@ pub struct Ascii<const N: usize> {
 impl<const N: usize> Ascii<N> {
     /// Returns the length of the string.
     pub fn len(&self) -> usize {
-        memchr::memchr(0, &self.chars).unwrap_or(N)
+        // TODO: Custom optimised implementation.
+        self.chars.iter().position(|&c| c == 0).unwrap_or(N)
     }
 
     /// Returns the string content.
