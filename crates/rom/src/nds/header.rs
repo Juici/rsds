@@ -1,13 +1,12 @@
 use std::fmt::{self, Write};
-use std::io;
-use std::mem;
+use std::mem::{self, MaybeUninit};
 
 use common::str::Ascii;
 use common::util::FileSize;
 
 // TODO: Add proper support for DSi headers.
 
-/// NDS cartridge header.
+/// NDS ROM header.
 ///
 /// Loaded from `0x00` in ROM to `0x27FFE00` on power-up.
 ///
@@ -16,7 +15,7 @@ use common::util::FileSize;
 /// \[1\]: <https://problemkaputt.de/gbatek.htm#dscartridgeheader>
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct Header {
+pub struct NdsHeader {
     /// Game title.
     ///
     /// Uppercase ASCII, padded with `0x00`.
@@ -213,32 +212,25 @@ pub struct Header {
     reserved5: [u8; 144], // 0x170
 }
 
-const HEADER_SIZE: usize = 512;
+static_assert!(NdsHeader::SIZE == 512);
 
-static_assert!(mem::size_of::<Header>() == HEADER_SIZE);
+impl NdsHeader {
+    /// The size of a header in bytes.
+    pub const SIZE: usize = mem::size_of::<Self>();
 
-impl Header {
-    /// Reads a header from the given reader.
-    pub fn from_reader<R: io::Read>(mut reader: R) -> io::Result<Header> {
-        let mut header = [0; HEADER_SIZE];
+    pub(crate) fn read(rom: &[u8]) -> NdsHeader {
+        assert!(rom.len() >= NdsHeader::SIZE);
 
-        // Read into the header buffer.
-        // We allow the reader to only partially fill the buffer and don't
-        // validate the header.
-        {
-            let mut buf = &mut header[..];
-            while !buf.is_empty() {
-                match reader.read(buf) {
-                    Ok(0) => break,
-                    Ok(n) => buf = &mut buf[n..],
-                    Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
-                    Err(e) => return Err(e),
-                }
-            }
-        }
+        let mut header = MaybeUninit::uninit();
 
-        // SAFETY: Any sequence of `HEADER_SIZE` bytes, is a valid representation.
-        Ok(unsafe { mem::transmute(header) })
+        let dst = header.as_mut_ptr() as *mut u8;
+        // SAFETY: `dst` is valid for writes of `HEADER_SIZE` bytes.
+        //         `rom` is valid for reads of `HEADER_SIZE` bytes.
+        //         `dst` and `rom` are nonoverlapping.
+        unsafe { dst.copy_from_nonoverlapping(rom.as_ptr(), NdsHeader::SIZE) };
+
+        // SAFETY: `header` is initialised with data copied from ROM.
+        unsafe { header.assume_init() }
     }
 
     /// Returns the device capacity in bytes.
@@ -253,7 +245,7 @@ impl Header {
 
     /// Computes the header checksum.
     pub fn compute_header_crc16(&self) -> u16 {
-        let ptr = self as *const Header as *const u8;
+        let ptr = self as *const NdsHeader as *const u8;
         let bytes = unsafe { std::slice::from_raw_parts(ptr, 0x15E) };
         common::util::crc16(bytes)
     }

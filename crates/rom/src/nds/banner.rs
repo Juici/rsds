@@ -1,6 +1,7 @@
-use std::mem;
+use common::str::Utf16;
+use std::mem::{self, MaybeUninit};
 
-/// NDS cartridge icon/title.
+/// NDS ROM icon/title.
 ///
 /// The ROM offset is defined by [`banner_offset`] in [`Header`].
 ///
@@ -20,7 +21,7 @@ use std::mem;
 /// \[1\]: <https://problemkaputt.de/gbatek.htm#dscartridgeicontitle>
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct Banner {
+pub struct NdsBanner {
     /// Version.
     ///
     /// - `0x0001` = original
@@ -49,21 +50,21 @@ pub struct Banner {
     pub palette: [u16; 16], // 0x0220
 
     /// Japanese title.
-    pub title_japanese: [u16; 128], // 0x0240
+    pub title_japanese: Utf16<128>, // 0x0240
     /// English title.
-    pub title_english: [u16; 128], // 0x0340
+    pub title_english: Utf16<128>, // 0x0340
     /// French title.
-    pub title_french: [u16; 128], // 0x0440
+    pub title_french: Utf16<128>, // 0x0440
     /// German title.
-    pub title_german: [u16; 128], // 0x0540
+    pub title_german: Utf16<128>, // 0x0540
     /// Italian title.
-    pub title_italian: [u16; 128], // 0x0640
+    pub title_italian: Utf16<128>, // 0x0640
     /// Spanish title.
-    pub title_spanish: [u16; 128], // 0x0740
+    pub title_spanish: Utf16<128>, // 0x0740
     /// Chinese title (version `0x0002` and above, or `0xFFFF` filled).
-    pub title_chinese: [u16; 128], // 0x0840
+    pub title_chinese: Utf16<128>, // 0x0840
     /// Korean title (version `0x0003` and above, or `0xFFFF` filled).
-    pub title_korean: [u16; 128], // 0x0940
+    pub title_korean: Utf16<128>, // 0x0940
 
     /// Reserved, zero filled (probably for more titles).
     reserved2: [u8; 2048], // 0x0A40
@@ -93,4 +94,24 @@ pub struct Banner {
     pub dsi_sequence: [u16; 64], // 0x2340
 }
 
-static_assert!(mem::size_of::<Banner>() == 9152);
+static_assert!(NdsBanner::SIZE == 9152);
+
+impl NdsBanner {
+    /// The size of a banner in bytes.
+    pub const SIZE: usize = mem::size_of::<Self>();
+
+    pub(crate) fn read(rom: &[u8], offset: usize) -> NdsBanner {
+        assert!(rom.len() >= offset + NdsBanner::SIZE);
+
+        let mut banner = MaybeUninit::uninit();
+
+        let dst = banner.as_mut_ptr() as *mut u8;
+        // SAFETY: `dst` is valid for writes of `BANNER_SIZE` bytes.
+        //         `rom + offset` is valid for reads of `BANNER_SIZE` bytes.
+        //         `dst` and `rom` are nonoverlapping.
+        unsafe { dst.copy_from_nonoverlapping(rom.as_ptr().add(offset), NdsBanner::SIZE) };
+
+        // SAFETY: `banner` is initialised with data copied from ROM.
+        unsafe { banner.assume_init() }
+    }
+}
