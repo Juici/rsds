@@ -1,4 +1,4 @@
-use std::fmt::{self, Write};
+use std::fmt;
 use std::mem::{self, MaybeUninit};
 
 use common::str::Ascii;
@@ -246,109 +246,111 @@ impl NdsHeader {
     /// Computes the header checksum.
     pub fn compute_header_crc16(&self) -> u16 {
         let ptr = self as *const NdsHeader as *const u8;
+        // Header CRC16 is computed over `0x000..0x15E`.
         let bytes = unsafe { std::slice::from_raw_parts(ptr, 0x15E) };
         common::util::crc16(bytes)
     }
+}
 
-    /// Dumps the header info to the given writer.
+impl fmt::Display for NdsHeader {
     #[rustfmt::skip]
-    pub fn dump<W: Write>(&self, w: &mut W) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         macro_rules! none_if_0 {
             ($value:expr) => {
                 if $value == 0 { " (None)" } else { "" }
             };
         }
 
-        writeln!(w, "0x000  Game title                          {}", self.game_title)?;
-        writeln!(w, "0x00C  Game code                           {}", self.game_code)?;
-        writeln!(w, "0x010  Maker code                          {}", self.maker_code)?;
-        writeln!(w, "0x012  Unit code                           {:#04X}", self.unit_code)?;
-        writeln!(w, "0x013  Encryption seed select              {:#04X}", self.encryption_seed_select)?;
-        writeln!(w, "0x014  Device capacity                     {:#04X} ({})", self.device_capacity, FileSize(self.device_capacity_bytes()))?;
-        writeln!(w, "0x015  (8 bytes reserved)")?;
-        writeln!(w, "0x01D  NDS region                          {:#04X}", self.nds_region)?;
-        writeln!(w, "0x01E  ROM version                         {:#04X}", self.rom_version)?;
-        writeln!(w, "0x01F  Autostart                           {:#04X}", self.autostart)?;
+        writeln!(f, "0x000  Game title                          {}", self.game_title)?;
+        writeln!(f, "0x00C  Game code                           {}", self.game_code)?;
+        writeln!(f, "0x010  Maker code                          {}", self.maker_code)?;
+        writeln!(f, "0x012  Unit code                           {:#04X}", self.unit_code)?;
+        writeln!(f, "0x013  Encryption seed select              {:#04X}", self.encryption_seed_select)?;
+        writeln!(f, "0x014  Device capacity                     {:#04X} ({})", self.device_capacity, FileSize(self.device_capacity_bytes()))?;
+        writeln!(f, "0x015  (8 bytes reserved)")?;
+        writeln!(f, "0x01D  NDS region                          {:#04X}", self.nds_region)?;
+        writeln!(f, "0x01E  ROM version                         {:#04X}", self.rom_version)?;
+        writeln!(f, "0x01F  Autostart                           {:#04X}", self.autostart)?;
 
-        writeln!(w, "0x020  ARM9 ROM offset                     {:#X}", self.arm9_rom_offset)?;
-        writeln!(w, "0x024  ARM9 entry address                  {:#X}", self.arm9_entry_address)?;
-        writeln!(w, "0x028  ARM9 RAM address                    {:#X}", self.arm9_ram_address)?;
-        writeln!(w, "0x02C  ARM9 code size                      {:#X}", self.arm9_size)?;
+        writeln!(f, "0x020  ARM9 ROM offset                     {:#X}", self.arm9_rom_offset)?;
+        writeln!(f, "0x024  ARM9 entry address                  {:#X}", self.arm9_entry_address)?;
+        writeln!(f, "0x028  ARM9 RAM address                    {:#X}", self.arm9_ram_address)?;
+        writeln!(f, "0x02C  ARM9 code size                      {:#X}", self.arm9_size)?;
 
-        writeln!(w, "0x030  ARM7 ROM offset                     {:#X}", self.arm7_rom_offset)?;
-        writeln!(w, "0x034  ARM7 entry address                  {:#X}", self.arm7_entry_address)?;
-        writeln!(w, "0x038  ARM7 RAM address                    {:#X}", self.arm7_ram_address)?;
-        writeln!(w, "0x03C  ARM7 code size                      {:#X}", self.arm7_size)?;
+        writeln!(f, "0x030  ARM7 ROM offset                     {:#X}", self.arm7_rom_offset)?;
+        writeln!(f, "0x034  ARM7 entry address                  {:#X}", self.arm7_entry_address)?;
+        writeln!(f, "0x038  ARM7 RAM address                    {:#X}", self.arm7_ram_address)?;
+        writeln!(f, "0x03C  ARM7 code size                      {:#X}", self.arm7_size)?;
 
-        writeln!(w, "0x040  File name table (FNT) offset        {:#X}", self.fnt_offset)?;
-        writeln!(w, "0x044  File name table (FNT) size          {:#X}", self.fnt_size)?;
-        writeln!(w, "0x048  File allocation table (FAT) offset  {:#X}", self.fat_offset)?;
-        writeln!(w, "0x04C  File allocation table (FAT) size    {:#X}", self.fat_size)?;
+        writeln!(f, "0x040  File name table (FNT) offset        {:#X}", self.fnt_offset)?;
+        writeln!(f, "0x044  File name table (FNT) size          {:#X}", self.fnt_size)?;
+        writeln!(f, "0x048  File allocation table (FAT) offset  {:#X}", self.fat_offset)?;
+        writeln!(f, "0x04C  File allocation table (FAT) size    {:#X}", self.fat_size)?;
 
-        writeln!(w, "0x050  ARM9 overlay offset                 {:#X}", self.arm9_overlay_offset)?;
-        writeln!(w, "0x054  ARM9 overlay size                   {:#X}", self.arm9_overlay_size)?;
-        writeln!(w, "0x058  ARM7 overlay offset                 {:#X}", self.arm7_overlay_offset)?;
-        writeln!(w, "0x05C  ARM7 overlay size                   {:#X}", self.arm7_overlay_size)?;
+        writeln!(f, "0x050  ARM9 overlay offset                 {:#X}", self.arm9_overlay_offset)?;
+        writeln!(f, "0x054  ARM9 overlay size                   {:#X}", self.arm9_overlay_size)?;
+        writeln!(f, "0x058  ARM7 overlay offset                 {:#X}", self.arm7_overlay_offset)?;
+        writeln!(f, "0x05C  ARM7 overlay size                   {:#X}", self.arm7_overlay_size)?;
 
-        writeln!(w, "0x060  Normal commands settings            {:#010X}", self.normal_command_settings)?;
-        writeln!(w, "0x064  KEY1 commands settings              {:#010X}", self.key1_command_settings)?;
+        writeln!(f, "0x060  Normal commands settings            {:#010X}", self.normal_command_settings)?;
+        writeln!(f, "0x064  KEY1 commands settings              {:#010X}", self.key1_command_settings)?;
 
-        writeln!(w, "0x068  Banner offset                       {:#X}{}", self.banner_offset, none_if_0!(self.banner_offset))?;
+        writeln!(f, "0x068  Banner offset                       {:#X}{}", self.banner_offset, none_if_0!(self.banner_offset))?;
 
-        writeln!(w, "0x06C  Secure area checksum                {:#06X}", self.secure_area_crc16)?;
+        writeln!(f, "0x06C  Secure area checksum                {:#06X}", self.secure_area_crc16)?;
         let delay_ms = self.secure_area_delay as f64 / 131.0;
-        writeln!(w, "0x06E  Secure area delay                   {:#06X} ({:.0} ms)", self.secure_area_delay, delay_ms)?;
+        writeln!(f, "0x06E  Secure area delay                   {:#06X} ({:.0} ms)", self.secure_area_delay, delay_ms)?;
 
-        writeln!(w, "0x070  ARM9 autoload hook RAM address?     {:#X}", self.arm9_autoload)?;
-        writeln!(w, "0x074  ARM7 autoload hook RAM address?     {:#X}", self.arm7_autoload)?;
+        writeln!(f, "0x070  ARM9 autoload hook RAM address?     {:#X}", self.arm9_autoload)?;
+        writeln!(f, "0x074  ARM7 autoload hook RAM address?     {:#X}", self.arm7_autoload)?;
 
-        writeln!(w, "0x078  Secure area disable                 {:#018X}", self.secure_area_disable)?;
+        writeln!(f, "0x078  Secure area disable                 {:#018X}", self.secure_area_disable)?;
 
-        writeln!(w, "0x080  ROM size                            {:#X}", self.rom_size)?;
-        writeln!(w, "0x084  ROM header size                     {:#X}", self.header_size)?;
+        writeln!(f, "0x080  ROM size                            {:#X}", self.rom_size)?;
+        writeln!(f, "0x084  ROM header size                     {:#X}", self.header_size)?;
 
-        writeln!(w, "0x088  (4 bytes unknown)")?;
-        writeln!(w, "0x08C  (8 bytes reserved)")?;
+        writeln!(f, "0x088  (4 bytes unknown)")?;
+        writeln!(f, "0x08C  (8 bytes reserved)")?;
 
-        writeln!(w, "0x094  NAND end of ROM area                {:#06X}", self.nand_rom_end)?;
-        writeln!(w, "0x096  NAND start of RW area               {:#06X}", self.nand_rw_start)?;
+        writeln!(f, "0x094  NAND end of ROM area                {:#06X}", self.nand_rom_end)?;
+        writeln!(f, "0x096  NAND start of RW area               {:#06X}", self.nand_rw_start)?;
 
-        writeln!(w, "0x098  (40 bytes reserved)")?;
+        writeln!(f, "0x098  (40 bytes reserved)")?;
 
-        struct CRC16 {
-            stored: u16,
-            calculated: u16,
+        struct Crc16Validate {
+            validation: u16,
+            computed: u16,
         }
 
-        impl fmt::Display for CRC16 {
+        impl fmt::Display for Crc16Validate {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                if self.stored == self.calculated {
+                if self.validation == self.computed {
                     write!(f, "OK")
                 } else {
-                    write!(f, "INVALID {:#06X}", self.calculated)
+                    write!(f, "INVALID {:#06X}", self.computed)
                 }
             }
         }
 
-        let logo_crc16 = CRC16 {
-            stored: self.nintendo_logo_crc16,
-            calculated: self.compute_logo_crc16(),
+        let logo_crc16 = Crc16Validate {
+            validation: self.nintendo_logo_crc16,
+            computed: self.compute_logo_crc16(),
         };
-        let header_crc16 = CRC16 {
-            stored: self.header_crc16,
-            calculated: self.compute_header_crc16(),
+        let header_crc16 = Crc16Validate {
+            validation: self.header_crc16,
+            computed: self.compute_header_crc16(),
         };
 
-        writeln!(w, "0x0C0  Nintendo logo (156 bytes)")?;
-        writeln!(w, "0x15C  Nintendo logo checksum              {:#06X} ({})", self.nintendo_logo_crc16, logo_crc16)?;
-        writeln!(w, "0x15E  Header checksum                     {:#06X} ({})", self.header_crc16, header_crc16)?;
+        writeln!(f, "0x0C0  Nintendo logo (156 bytes)")?;
+        writeln!(f, "0x15C  Nintendo logo checksum              {:#06X} ({})", self.nintendo_logo_crc16, logo_crc16)?;
+        writeln!(f, "0x15E  Header checksum                     {:#06X} ({})", self.header_crc16, header_crc16)?;
 
-        writeln!(w, "0x160  Debug ROM offset                    {:#X}{}", self.debug_rom_offset, none_if_0!(self.debug_rom_offset))?;
-        writeln!(w, "0x164  Debug code size                     {:#X}{}", self.debug_size, none_if_0!(self.debug_size))?;
-        writeln!(w, "0x168  Debug RAM address                   {:#X}{}", self.debug_ram_address, none_if_0!(self.debug_ram_address))?;
+        writeln!(f, "0x160  Debug ROM offset                    {:#X}{}", self.debug_rom_offset, none_if_0!(self.debug_rom_offset))?;
+        writeln!(f, "0x164  Debug code size                     {:#X}{}", self.debug_size, none_if_0!(self.debug_size))?;
+        writeln!(f, "0x168  Debug RAM address                   {:#X}{}", self.debug_ram_address, none_if_0!(self.debug_ram_address))?;
 
-        writeln!(w, "0x16C  (4 bytes reserved)")?;
-        write!(w, "0x170  (144 bytes reserved)")?;
+        writeln!(f, "0x16C  (4 bytes reserved)")?;
+        write!(f, "0x170  (144 bytes reserved)")?;
 
         Ok(())
     }
