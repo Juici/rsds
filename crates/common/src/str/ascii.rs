@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fmt;
+use std::ops::Index;
 
 /// An error in an ASCII string.
 #[derive(Clone, Copy, Debug)]
@@ -31,6 +32,11 @@ pub struct Ascii<const N: usize> {
 }
 
 impl<const N: usize> Ascii<N> {
+    /// Returns a reference to the inner byte representation.
+    pub fn as_bytes(&self) -> &[u8; N] {
+        &self.chars
+    }
+
     /// Returns the length of the string.
     pub fn len(&self) -> usize {
         // TODO: Custom optimised implementation.
@@ -167,5 +173,14 @@ impl<const N: usize> PartialEq<Ascii<N>> for &str {
     #[inline]
     fn eq(&self, other: &Ascii<N>) -> bool {
         other == self
+    }
+}
+
+impl<const N: usize> Index<usize> for Ascii<N> {
+    type Output = u8;
+
+    #[inline]
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.chars[index]
     }
 }

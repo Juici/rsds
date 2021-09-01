@@ -4,6 +4,8 @@ use std::mem::{self, MaybeUninit};
 use common::str::Ascii;
 use common::util::FileSize;
 
+use crate::nds::codes::{MAKERS, REGIONS};
+
 // TODO: Add proper support for DSi headers.
 
 /// NDS ROM header.
@@ -34,16 +36,18 @@ pub struct NdsHeader {
     /// - `0x02` = NDS + DSi
     /// - `0x03` = DSi
     pub unit_code: u8, // 0x012
-    /// Encryption seed select.
+    /// Device type.
     ///
     /// `0x00..=0x07`, usually `0x00`.
-    pub encryption_seed_select: u8, // 0x013
+    pub device_type: u8, // 0x013
     /// Device capacity.
     ///
     /// `chip size = 128KB << capacity`.
     pub device_capacity: u8, // 0x014
     /// Reserved, zero filled.
-    reserved1: [u8; 8], // 0x015
+    reserved1: [u8; 7], // 0x015
+    // TODO: Handle DSi header info.
+    dsi_flags: u8, // 0x01C
     /// NDS region.
     ///
     /// - `0x00` = Normal
@@ -229,8 +233,44 @@ impl NdsHeader {
         //         `dst` and `rom` are nonoverlapping.
         unsafe { dst.copy_from_nonoverlapping(rom.as_ptr(), NdsHeader::SIZE) };
 
+        // FIXME: Fix u16 and u32 values on big-endian systems.
+
         // SAFETY: `header` is initialised with data copied from ROM.
         unsafe { header.assume_init() }
+    }
+
+    /// Returns `true` if the ROM a homebrew.
+    pub fn is_homebrew(&self) -> bool {
+        self.arm9_rom_offset < 0x4000 || *self.game_code.as_bytes() == [0x23, 0x23, 0x23, 0x23]
+    }
+
+    /// Returns `true` if the ROM has a secure area.
+    pub fn has_secure_area(&self) -> bool {
+        self.arm9_rom_offset < 0x8000 && self.arm9_rom_offset >= 0x4000
+    }
+
+    /// Returns `true` if the ROM is a DSi ROM.
+    pub fn is_dsi(&self) -> bool {
+        self.unit_code & 0x02 != 0
+    }
+
+    /// Returns the game code as a `u32`.
+    pub fn game_code(&self) -> u32 {
+        u32::from_le_bytes(*self.game_code.as_bytes())
+    }
+
+    /// Returns the region as determined from the game code.
+    pub fn region(&self) -> Option<&'static str> {
+        let region = self.game_code[3];
+        REGIONS.get(&region).map(|&s| s)
+    }
+
+    /// Returns the manufacturer as determined from the maker code.
+    pub fn maker(&self) -> Option<&'static str> {
+        match self.maker_code.to_str() {
+            Ok(maker_code) => MAKERS.get(maker_code).map(|&s| s),
+            Err(_) => None,
+        }
     }
 
     /// Returns the device capacity in bytes.
@@ -255,17 +295,32 @@ impl NdsHeader {
 impl fmt::Display for NdsHeader {
     #[rustfmt::skip]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        macro_rules! none_if_0 {
-            ($value:expr) => {
-                if $value == 0 { " (None)" } else { "" }
+        macro_rules! write_none_if_0 {
+            ($w:expr, $value:expr) => {
+                if $value == 0 {
+                    write!(f, " (None)")
+                } else {
+                    Ok(())
+                }
             };
         }
 
         writeln!(f, "0x000  Game title                          {}", self.game_title)?;
-        writeln!(f, "0x00C  Game code                           {}", self.game_code)?;
-        writeln!(f, "0x010  Maker code                          {}", self.maker_code)?;
+
+        write!(f, "0x00C  Game code                           {}", self.game_code)?;
+        if let Some(region) = self.region() {
+            write!(f, " (NTR-{}-{})", self.game_code, region)?;
+        }
+        writeln!(f)?;
+
+        write!(f, "0x010  Maker code                          {}", self.maker_code)?;
+        if let Some(maker) = self.maker() {
+            write!(f, " ({})", maker)?;
+        }
+        writeln!(f)?;
+
         writeln!(f, "0x012  Unit code                           {:#04X}", self.unit_code)?;
-        writeln!(f, "0x013  Encryption seed select              {:#04X}", self.encryption_seed_select)?;
+        writeln!(f, "0x013  Device type                         {:#04X}", self.device_type)?;
         writeln!(f, "0x014  Device capacity                     {:#04X} ({})", self.device_capacity, FileSize(self.device_capacity_bytes()))?;
         writeln!(f, "0x015  (8 bytes reserved)")?;
         writeln!(f, "0x01D  NDS region                          {:#04X}", self.nds_region)?;
@@ -295,9 +350,12 @@ impl fmt::Display for NdsHeader {
         writeln!(f, "0x060  Normal commands settings            {:#010X}", self.normal_command_settings)?;
         writeln!(f, "0x064  KEY1 commands settings              {:#010X}", self.key1_command_settings)?;
 
-        writeln!(f, "0x068  Banner offset                       {:#X}{}", self.banner_offset, none_if_0!(self.banner_offset))?;
+        write!(f, "0x068  Banner offset                       {:#X}", self.banner_offset)?;
+        write_none_if_0!(f, self.banner_offset)?;
+        writeln!(f)?;
 
         writeln!(f, "0x06C  Secure area checksum                {:#06X}", self.secure_area_crc16)?;
+
         let delay_ms = self.secure_area_delay as f64 / 131.0;
         writeln!(f, "0x06E  Secure area delay                   {:#06X} ({:.0} ms)", self.secure_area_delay, delay_ms)?;
 
@@ -345,9 +403,17 @@ impl fmt::Display for NdsHeader {
         writeln!(f, "0x15C  Nintendo logo checksum              {:#06X} ({})", self.nintendo_logo_crc16, logo_crc16)?;
         writeln!(f, "0x15E  Header checksum                     {:#06X} ({})", self.header_crc16, header_crc16)?;
 
-        writeln!(f, "0x160  Debug ROM offset                    {:#X}{}", self.debug_rom_offset, none_if_0!(self.debug_rom_offset))?;
-        writeln!(f, "0x164  Debug code size                     {:#X}{}", self.debug_size, none_if_0!(self.debug_size))?;
-        writeln!(f, "0x168  Debug RAM address                   {:#X}{}", self.debug_ram_address, none_if_0!(self.debug_ram_address))?;
+        write!(f, "0x160  Debug ROM offset                    {:#X}", self.debug_rom_offset)?;
+        write_none_if_0!(f, self.debug_rom_offset)?;
+        writeln!(f)?;
+
+        write!(f, "0x164  Debug code size                     {:#X}", self.debug_size)?;
+        write_none_if_0!(f, self.debug_size)?;
+        writeln!(f)?;
+
+        write!(f, "0x168  Debug RAM address                   {:#X}", self.debug_ram_address)?;
+        write_none_if_0!(f, self.debug_ram_address)?;
+        writeln!(f)?;
 
         writeln!(f, "0x16C  (4 bytes reserved)")?;
         write!(f, "0x170  (144 bytes reserved)")?;
