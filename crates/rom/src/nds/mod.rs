@@ -10,9 +10,11 @@ mod encrypt;
 mod header;
 mod roms;
 
+use self::encrypt::key1::Key1;
+
 pub use self::banner::NdsBanner;
 pub use self::header::NdsHeader;
-use crate::nds::encrypt::key1::Key1;
+use crate::nds::roms::{RomParams, SramKind};
 
 /// NDS ROM.
 #[derive(Debug)]
@@ -84,7 +86,7 @@ impl NdsRom {
 
         let game_code = header.game_code();
 
-        let rom_params = match roms::ROMS.get(&game_code) {
+        let rom_params = match RomParams::get(game_code) {
             Some(&params) => {
                 log::info!(
                     "ROM entry: {} (SRAM {})",
@@ -97,13 +99,13 @@ impl NdsRom {
             None => {
                 let sram_kind = if header.is_homebrew() {
                     // No SRAM for homebrew.
-                    roms::SramKind::None
+                    SramKind::None
                 } else {
                     // FIXME: We assume EEPROM with 64KB (same behaviour as melonDS).
-                    roms::SramKind::Eeprom64KB
+                    SramKind::Eeprom64KB
                 };
 
-                roms::Entry {
+                RomParams {
                     rom_size: rom_size as u32,
                     sram_kind,
                 }
@@ -175,6 +177,7 @@ impl NdsRom {
         // Note: The BIOS silently skips and ARM9 boot code when `offset < 0x4000`.
         //
         // <https://problemkaputt.de/gbatek.htm#dscartridgesecurearea>
+        // if header.has_secure_area() {
         if header.has_secure_area() {
             // The first 8 bytes of the secure area contain the secure area ID,
             // this ID is verified by the BIOS boot code, the ID value changes
@@ -190,27 +193,25 @@ impl NdsRom {
             // the ID doesn't match, then the first 0x800 bytes (2KB) are overwritten
             // by 0xE7FFDEFF values.
 
-            let arm9_offset = header.arm9_rom_offset as usize;
+            let mut secure_area = &mut rom[(header.arm9_rom_offset as usize)..0x8000];
 
             // Magic value for destroyed secure area ID.
             // This is a little endian u32 value.
             const E7FFDEFF: [u8; 4] = [0xFF, 0xDE, 0xFF, 0xE7];
 
             // Re-encrypt secure area if needed.
-            if rom[arm9_offset..arm9_offset + 4] == E7FFDEFF
-                && rom[(arm9_offset + 0x10)..(arm9_offset + 0x10) + 4] != E7FFDEFF
-            {
+            if secure_area[0..4] == E7FFDEFF && secure_area[0x10..0x14] != E7FFDEFF {
                 log::debug!("re-encrypting ROM secure area");
 
-                rom[arm9_offset..arm9_offset + 8].copy_from_slice(b"encryObj");
+                secure_area[0..8].copy_from_slice(b"encryObj");
 
                 let key1 = Key1::init3(game_code);
                 for i in 0x0..0x100 {
-                    key1.encrypt_block(&mut rom[arm9_offset + 8 * i..]);
+                    key1.encrypt_block(&mut secure_area[8 * i..]);
                 }
 
                 let key1 = Key1::init2(game_code);
-                key1.encrypt_block(&mut rom[arm9_offset..]);
+                key1.encrypt_block(&mut secure_area);
             }
         }
 
@@ -222,10 +223,14 @@ impl NdsRom {
     }
 
     /// Computes the secure area checksum.
-    pub fn compute_secure_area_crc16(&self) -> u16 {
-        // FIXME: Copy and encrypt the secure area if required.
-
-        // Secure area CRC16 is computed over `0x4000..0x8000`.
-        common::util::crc16(&self.rom[0x4000..0x8000])
+    pub fn compute_secure_area_crc16(&self) -> Option<u16> {
+        if self.header.has_secure_area() {
+            // Secure area CRC16 is computed over `arm9_rom_offset..0x8000`.
+            Some(common::util::crc16(
+                &self.rom[(self.header.arm9_rom_offset as usize)..0x8000],
+            ))
+        } else {
+            None
+        }
     }
 }

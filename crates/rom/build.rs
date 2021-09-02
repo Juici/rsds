@@ -53,7 +53,7 @@ fn generate_roms_list() -> Result<(), Box<dyn Error>> {
         };
 
         let entry = format!(
-            "Entry {{ rom_size: {:#010X}, sram_kind: SramKind::{} }}",
+            "RomParams {{ rom_size: {:#010X}, sram_kind: SramKind::{} }}",
             rom.rom_size, sram
         );
 

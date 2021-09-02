@@ -5,6 +5,7 @@ use common::str::Ascii;
 use common::util::FileSize;
 
 use crate::nds::codes::{MAKERS, REGIONS};
+use std::ops::Range;
 
 // TODO: Add proper support for DSi headers.
 

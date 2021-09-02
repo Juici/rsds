@@ -2,7 +2,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 const KEY_DATA_LEN: usize = 0x412;
 
-/// ARM7 BIOS encryption key data.
+/// Encryption key data from ARM7 BIOS.
 ///
 /// Sourced from `0x0030..0x1078`, and interpreted as `u32`s with little-endian encoding.
 static KEY_DATA: [u32; KEY_DATA_LEN] = [
@@ -141,7 +141,7 @@ static KEY_DATA: [u32; KEY_DATA_LEN] = [
 
 #[derive(Debug)]
 pub struct Key1 {
-    // This holds both the `p` and `s` of blowfish.
+    // This holds both the `p` and `s` used in the blowfish algorithm.
     //   p    = key_buf[0x000..0x012]
     //   s[0] = key_buf[0x012..0x112]
     //   s[1] = key_buf[0x112..0x212]
@@ -174,44 +174,44 @@ impl Key1 {
         let mut lr = (0, 0);
         for i in 0x0..0x9 {
             lr = self.encrypt(lr.0, lr.1);
-            self.key_buf[2 * i] = lr.0;
-            self.key_buf[2 * i + 1] = lr.1;
+            self.key_buf[2 * i] = lr.1;
+            self.key_buf[2 * i + 1] = lr.0;
         }
         for i in 0x0..0x200 {
             lr = self.encrypt(lr.0, lr.1);
-            self.key_buf[0x12 + 2 * i] = lr.0;
-            self.key_buf[0x12 + 2 * i + 1] = lr.1;
+            self.key_buf[0x12 + 2 * i] = lr.1;
+            self.key_buf[0x12 + 2 * i + 1] = lr.0;
         }
     }
 
     fn encrypt(&self, mut l: u32, mut r: u32) -> (u32, u32) {
         for i in 0x0..0x8 {
-            l ^= self.key_buf[2 * i];
-            r ^= self.lookup(l);
-            r ^= self.key_buf[2 * i + 1];
+            r ^= self.key_buf[2 * i];
             l ^= self.lookup(r);
+            l ^= self.key_buf[2 * i + 1];
+            r ^= self.lookup(l);
         }
-        l ^= self.key_buf[0x10];
-        r ^= self.key_buf[0x11];
+        r ^= self.key_buf[0x10];
+        l ^= self.key_buf[0x11];
         (r, l)
     }
 
     fn decrypt(&self, mut l: u32, mut r: u32) -> (u32, u32) {
         for i in (0x1..0x9).rev() {
-            l ^= self.key_buf[2 * i + 1];
-            r ^= self.lookup(l);
-            r ^= self.key_buf[2 * i];
+            r ^= self.key_buf[2 * i + 1];
             l ^= self.lookup(r);
+            l ^= self.key_buf[2 * i];
+            r ^= self.lookup(l);
         }
-        l ^= self.key_buf[0x1];
-        r ^= self.key_buf[0x0];
+        r ^= self.key_buf[0x1];
+        l ^= self.key_buf[0x0];
         (r, l)
     }
 
     fn apply_keycode(&mut self, key: &mut [u32; 3]) {
         let [a, b, c] = *key;
-        let (a, b) = self.encrypt(a, b);
         let (b, c) = self.encrypt(b, c);
+        let (a, b) = self.encrypt(a, b);
         *key = [a, b, c];
 
         self.expand_key(key);

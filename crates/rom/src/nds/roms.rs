@@ -2,6 +2,8 @@
 
 use std::fmt;
 
+use crate::nds::NdsHeader;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SramKind {
     /// No SRAM.
@@ -44,11 +46,18 @@ pub enum MemoryKind {
 
 /// A ROM with known size and SRAM.
 #[derive(Clone, Copy, Debug)]
-pub struct Entry {
+pub struct RomParams {
     /// The size of the ROM in bytes.
     pub rom_size: u32,
     /// The kind and size of SRAM.
     pub sram_kind: SramKind,
+}
+
+impl RomParams {
+    /// Returns parameters for a given ROM.
+    pub fn get(game_code: u32) -> Option<&'static RomParams> {
+        ROMS.get(&game_code)
+    }
 }
 
 impl SramKind {
@@ -101,4 +110,4 @@ impl fmt::Display for SramKind {
     }
 }
 
-pub static ROMS: phf::Map<u32, Entry> = include!(concat!(env!("OUT_DIR"), "/roms_map"));
+static ROMS: phf::Map<u32, RomParams> = include!(concat!(env!("OUT_DIR"), "/roms_map"));
