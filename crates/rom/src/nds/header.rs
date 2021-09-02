@@ -4,7 +4,7 @@ use std::mem::{self, MaybeUninit};
 use common::str::Ascii;
 use common::util::{crc, FileSize};
 
-use crate::nds::codes::{MAKERS, REGIONS};
+use crate::nds::info::{MAKERS, REGIONS};
 
 // TODO: Add proper support for DSi headers.
 
@@ -186,7 +186,7 @@ pub struct NdsHeader {
     /// # Notes
     ///
     /// The BIOS only verifies that this is `0xCF56`, it does not verify the
-    /// actual data of the logo. The logo data however is verified by the firmware.
+    /// actual info of the logo. The logo info however is verified by the firmware.
     pub nintendo_logo_crc16: u16, // 0x15C
     /// Header checksum.
     ///
@@ -235,7 +235,7 @@ impl NdsHeader {
 
         // FIXME: Fix u16 and u32 values on big-endian systems.
 
-        // SAFETY: `header` is initialised with data copied from ROM.
+        // SAFETY: `header` is initialised with info copied from ROM.
         unsafe { header.assume_init() }
     }
 

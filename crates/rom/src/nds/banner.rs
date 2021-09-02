@@ -111,7 +111,7 @@ impl NdsBanner {
         //         `dst` and `rom` are nonoverlapping.
         unsafe { dst.copy_from_nonoverlapping(rom.as_ptr().add(offset), NdsBanner::SIZE) };
 
-        // SAFETY: `banner` is initialised with data copied from ROM.
+        // SAFETY: `banner` is initialised with info copied from ROM.
         unsafe { banner.assume_init() }
     }
 }

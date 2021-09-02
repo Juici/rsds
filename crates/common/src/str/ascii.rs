@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fmt;
-use std::ops::{Deref, Index};
+use std::ops::Deref;
 
 /// An error in an ASCII string.
 #[derive(Clone, Copy, Debug)]

@@ -5,13 +5,13 @@ use std::path::Path;
 use common::util::{crc, FileSize};
 
 mod banner;
-mod codes;
-mod encrypt;
 mod header;
-mod roms;
+mod info;
 
-use self::encrypt::key1::Key1;
-use self::roms::{RomParams, SramKind};
+pub mod encrypt;
+
+use self::encrypt::Key1;
+use self::info::{MemoryKind, RomParams, SramKind};
 
 pub use self::banner::NdsBanner;
 pub use self::header::NdsHeader;
@@ -158,7 +158,7 @@ impl NdsRom {
         if header.is_dsi() {
             card_id |= 0x08000000;
         }
-        if rom_params.sram_kind.memory_kind() == roms::MemoryKind::Nand {
+        if rom_params.sram_kind.memory_kind() == MemoryKind::Nand {
             card_id |= 0x48000000;
         } else if rom_params.rom_size >= 128 * 1024 * 1024 {
             card_id |= 0x80000000;
@@ -220,6 +220,8 @@ impl NdsRom {
                 key1.encrypt_block(&mut secure_area);
             }
         }
+
+        // TODO: SRAM.
 
         NdsRom {
             rom,

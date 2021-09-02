@@ -2,7 +2,7 @@ use byteorder::{ByteOrder, LittleEndian};
 
 const KEY_DATA_LEN: usize = 0x412;
 
-/// Encryption key data from ARM7 BIOS.
+/// Encryption key info from ARM7 BIOS.
 ///
 /// Sourced from `0x0030..0x1078`, and interpreted as `u32`s with little-endian encoding.
 static KEY_DATA: [u32; KEY_DATA_LEN] = [

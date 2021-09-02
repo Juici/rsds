@@ -2,8 +2,6 @@
 
 use std::fmt;
 
-use crate::nds::NdsHeader;
-
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SramKind {
     /// No SRAM.
