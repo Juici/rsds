@@ -1,5 +1,5 @@
-mod crc;
 mod file_size;
 
-pub use self::crc::crc16;
+pub mod crc;
+
 pub use self::file_size::FileSize;

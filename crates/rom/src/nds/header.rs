@@ -2,10 +2,9 @@ use std::fmt;
 use std::mem::{self, MaybeUninit};
 
 use common::str::Ascii;
-use common::util::FileSize;
+use common::util::{crc, FileSize};
 
 use crate::nds::codes::{MAKERS, REGIONS};
-use std::ops::Range;
 
 // TODO: Add proper support for DSi headers.
 
@@ -240,6 +239,16 @@ impl NdsHeader {
         unsafe { header.assume_init() }
     }
 
+    /// Returns `true` if the ROM is a DSi ROM.
+    pub fn is_dsi(&self) -> bool {
+        self.unit_code & 0x02 != 0
+    }
+
+    /// Returns `true` if the ROM has Infrared (IR).
+    pub fn has_ir(&self) -> bool {
+        self.game_code[0] == b'I'
+    }
+
     /// Returns `true` if the ROM a homebrew.
     pub fn is_homebrew(&self) -> bool {
         self.arm9_rom_offset < 0x4000 || *self.game_code.as_bytes() == [0x23, 0x23, 0x23, 0x23]
@@ -248,11 +257,6 @@ impl NdsHeader {
     /// Returns `true` if the ROM has a secure area.
     pub fn has_secure_area(&self) -> bool {
         self.arm9_rom_offset < 0x8000 && self.arm9_rom_offset >= 0x4000
-    }
-
-    /// Returns `true` if the ROM is a DSi ROM.
-    pub fn is_dsi(&self) -> bool {
-        self.unit_code & 0x02 != 0
     }
 
     /// Returns the game code as a `u32`.
@@ -281,7 +285,7 @@ impl NdsHeader {
 
     /// Computes the Nintendo logo checksum.
     pub fn compute_logo_crc16(&self) -> u16 {
-        common::util::crc16(&self.nintendo_logo)
+        crc::crc16(&self.nintendo_logo)
     }
 
     /// Computes the header checksum.
@@ -289,7 +293,7 @@ impl NdsHeader {
         let ptr = self as *const NdsHeader as *const u8;
         // Header CRC16 is computed over `0x000..0x15E`.
         let bytes = unsafe { std::slice::from_raw_parts(ptr, 0x15E) };
-        common::util::crc16(bytes)
+        crc::crc16(bytes)
     }
 }
 

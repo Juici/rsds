@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::fmt;
-use std::ops::Index;
+use std::ops::{Deref, Index};
 
 /// An error in an ASCII string.
 #[derive(Clone, Copy, Debug)]
@@ -148,10 +148,7 @@ impl<const N: usize, const M: usize> PartialEq<Ascii<M>> for Ascii<N> {
 
 impl<const N: usize> PartialEq<str> for Ascii<N> {
     fn eq(&self, other: &str) -> bool {
-        match self.to_str() {
-            Ok(s) => s == other,
-            Err(_) => false,
-        }
+        self.chars[..self.len()] == *other.as_bytes()
     }
 }
 
@@ -176,11 +173,11 @@ impl<const N: usize> PartialEq<Ascii<N>> for &str {
     }
 }
 
-impl<const N: usize> Index<usize> for Ascii<N> {
-    type Output = u8;
+impl<const N: usize> Deref for Ascii<N> {
+    type Target = [u8; N];
 
     #[inline]
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.chars[index]
+    fn deref(&self) -> &Self::Target {
+        &self.chars
     }
 }

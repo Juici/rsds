@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{self, Read};
 use std::path::Path;
 
-use common::util::FileSize;
+use common::util::{crc, FileSize};
 
 mod banner;
 mod codes;
@@ -11,10 +11,10 @@ mod header;
 mod roms;
 
 use self::encrypt::key1::Key1;
+use self::roms::{RomParams, SramKind};
 
 pub use self::banner::NdsBanner;
 pub use self::header::NdsHeader;
-use crate::nds::roms::{RomParams, SramKind};
 
 /// NDS ROM.
 #[derive(Debug)]
@@ -166,6 +166,12 @@ impl NdsRom {
 
         log::info!("ROM chip ID: {:#010X}", card_id);
 
+        log::info!(
+            "Action Replay game ID: {}-{:08X}",
+            header.game_code,
+            crc::crc32(&rom[..0x200])
+        );
+
         // The secure area exists if the ARM9 boot code ROM `offset` is located
         // within `0x4000..0x8000`. If so, it will be loaded (by BIOS via KEY1
         // encrypted commands) in 4KB portions, starting at `offset`, aligned to
@@ -226,7 +232,7 @@ impl NdsRom {
     pub fn compute_secure_area_crc16(&self) -> Option<u16> {
         if self.header.has_secure_area() {
             // Secure area CRC16 is computed over `arm9_rom_offset..0x8000`.
-            Some(common::util::crc16(
+            Some(crc::crc16(
                 &self.rom[(self.header.arm9_rom_offset as usize)..0x8000],
             ))
         } else {
