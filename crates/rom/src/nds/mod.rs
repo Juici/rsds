@@ -22,6 +22,7 @@ pub struct NdsRom {
     pub rom: Box<[u8]>,
     pub header: NdsHeader,
     pub banner: Option<NdsBanner>,
+    pub params: RomParams,
 }
 
 impl NdsRom {
@@ -86,7 +87,7 @@ impl NdsRom {
 
         let game_code = header.game_code();
 
-        let rom_params = match RomParams::get(game_code) {
+        let params = match RomParams::get(game_code) {
             Some(&params) => {
                 log::info!(
                     "ROM entry: {} (SRAM {})",
@@ -112,7 +113,7 @@ impl NdsRom {
             }
         };
 
-        if rom_params.rom_size as usize != rom_data_size {
+        if params.rom_size as usize != rom_data_size {
             log::warn!(
                 "bad ROM size {} (expected {}), rounded to {}",
                 rom_data_size,
@@ -158,9 +159,9 @@ impl NdsRom {
         if header.is_dsi() {
             card_id |= 0x08000000;
         }
-        if rom_params.sram_kind.memory_kind() == MemoryKind::Nand {
+        if params.sram_kind.memory_kind() == MemoryKind::Nand {
             card_id |= 0x48000000;
-        } else if rom_params.rom_size >= 128 * 1024 * 1024 {
+        } else if params.rom_size >= 128 * 1024 * 1024 {
             card_id |= 0x80000000;
         }
 
@@ -227,6 +228,7 @@ impl NdsRom {
             rom,
             header,
             banner,
+            params,
         }
     }
 
