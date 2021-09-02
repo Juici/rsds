@@ -75,6 +75,7 @@ impl NdsRom {
         Ok(Self::load_data(rom, len))
     }
 
+    // TODO: Split up this function into smaller functions.
     fn load_data(rom: Vec<u8>, rom_data_size: usize) -> NdsRom {
         let mut rom = rom.into_boxed_slice();
         let rom_size = rom.len();
