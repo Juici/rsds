@@ -302,6 +302,8 @@ impl Key1 {
         let mut key1 = Key1 { key_buf: KEY_DATA };
         let mut key = [game_code, game_code >> 1, game_code << 1];
 
+        // Manually init to avoid extra computation.
+
         key1.apply_keycode(&mut key);
         key1.apply_keycode(&mut key);
 
