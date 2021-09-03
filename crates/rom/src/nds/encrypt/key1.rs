@@ -139,6 +139,13 @@ static KEY_DATA: [u32; KEY_DATA_LEN] = [
     0x18C4E796, 0x19F5AD5F,
 ];
 
+// Magic value for secure area ID.
+const ENCRY_OBJ: [u8; 8] = *b"encryObj";
+// Magic value for destroyed secure area ID.
+//
+// This is `0xE7FFDEFF` in little-endian repeated twice.
+const DESTROYED_ID: [u8; 8] = [0xFF, 0xDE, 0xFF, 0xE7, 0xFF, 0xDE, 0xFF, 0xE7];
+
 #[derive(Debug)]
 pub struct Key1 {
     // This holds both the `p` and `s` used in the blowfish algorithm.
@@ -271,5 +278,49 @@ impl Key1 {
         let (l, r) = self.decrypt(l, r);
         LittleEndian::write_u32(&mut block[..4], l);
         LittleEndian::write_u32(&mut block[4..], r);
+    }
+
+    /// Encrypts the secure area of the ARM9 boot code.
+    pub fn encrypt_secure_area(secure_area: &mut [u8], game_code: u32) {
+        if cfg!(debug_assertions) && secure_area[0..8] != DESTROYED_ID {
+            panic!("encryption failed");
+        }
+
+        secure_area[0..8].copy_from_slice(&ENCRY_OBJ);
+
+        let key1 = Key1::init3(game_code);
+        for i in 0x0..0x100 {
+            key1.encrypt_block(&mut secure_area[8 * i..]);
+        }
+
+        let key1 = Key1::init2(game_code);
+        key1.encrypt_block(secure_area);
+    }
+
+    /// Decrypts the secure area of the ARM9 boot code.
+    pub fn decrypt_secure_area(secure_area: &mut [u8], game_code: u32) {
+        let mut key1 = Key1 { key_buf: KEY_DATA };
+        let mut key = [game_code, game_code >> 1, game_code << 1];
+
+        key1.apply_keycode(&mut key);
+        key1.apply_keycode(&mut key);
+
+        key1.decrypt_block(secure_area);
+
+        key[1] <<= 1;
+        key[2] >>= 1;
+        key1.apply_keycode(&mut key);
+
+        key1.decrypt_block(secure_area);
+
+        if cfg!(debug_assertions) && secure_area[0..8] != ENCRY_OBJ {
+            panic!("decryption failed");
+        }
+
+        secure_area[0..8].copy_from_slice(&DESTROYED_ID);
+
+        for i in 0x2..0x100 {
+            key1.decrypt_block(&mut secure_area[8 * i..]);
+        }
     }
 }

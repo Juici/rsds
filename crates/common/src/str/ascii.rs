@@ -28,15 +28,10 @@ impl fmt::Display for AsciiError {
 #[derive(Clone, Copy, Eq)]
 #[repr(transparent)]
 pub struct Ascii<const N: usize> {
-    chars: [u8; N],
+    pub chars: [u8; N],
 }
 
 impl<const N: usize> Ascii<N> {
-    /// Returns a reference to the inner byte representation.
-    pub fn as_bytes(&self) -> &[u8; N] {
-        &self.chars
-    }
-
     /// Returns the length of the string.
     pub fn len(&self) -> usize {
         // TODO: Custom optimised implementation.
