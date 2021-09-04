@@ -1,6 +1,8 @@
 # A list of ROMs along with their size and save memory type.
 #
-# \[1\]: <https://github.com/Arisotura/melonDS/blob/master/src/ROMList.h>
+# [1]: <https://github.com/Arisotura/melonDS/blob/master/src/ROMList.h>
+# [2]: <https://www.advanscene.com/>
+# [3]: <https://releaselister.info/en/nds/>
 roms = [
     { game_code = 0x41464141, rom_size = 0x00800000, sram_kind = 0x00000004 },
     { game_code = 0x414D4155, rom_size = 0x00800000, sram_kind = 0x00000008 },

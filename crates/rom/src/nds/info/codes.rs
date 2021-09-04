@@ -1,18 +1,34 @@
 //! Region and maker codes.
 //!
 //! \[1\]: <https://github.com/devkitPro/ndstool/blob/master/source/ndscodes.cpp>
+//! \[2\]: <https://www.advanscene.com/>
+//! \[3\]: <https://releaselister.info/en/nds/>
 
+// There is some conflict with regions, so we choose the most common.
 pub static REGIONS: phf::Map<u8, &'static str> = phf::phf_map! {
-    b'D' => "NOE",
+    // 'A' is used for debug ROMs, we'll ignore it.
+    b'C' => "CHN",
+    b'D' => "NOE", // Preferred to "GER".
     b'E' => "USA",
-    b'F' => "FRA",
+    b'F' => "FRA", // Preferred to "NOE".
+    b'G' => "GRE", // Preferred to "EUU".
     b'H' => "HOL",
     b'I' => "ITA",
     b'J' => "JPN",
     b'K' => "KOR",
+    b'L' => "CAN", // Preferred to "USA".
+    b'M' => "SWE", // Preferred to "NOR".
+    b'N' => "NOR", // Preferred to "SWE".
     b'P' => "EUR",
-    b'S' => "SPA",
+    b'Q' => "DAN", // Preferred to "DEN".
+    b'R' => "RUS",
+    b'S' => "SPA", // Preferred to "ESP".
+    b'U' => "AUS",
+    b'V' => "EUU",
+    b'W' => "EUU",
     b'X' => "EUU",
+    b'Y' => "EUU",
+    b'Z' => "EUU",
 };
 
 pub static MAKERS: phf::Map<&'static str, &'static str> = phf::phf_map! {
