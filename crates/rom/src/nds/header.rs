@@ -1,4 +1,4 @@
-use std::mem::{self, MaybeUninit};
+use std::mem;
 
 use common::str::Ascii;
 use common::util::crc;
@@ -215,27 +215,29 @@ pub struct NdsHeader {
     reserved5: [u8; 144], // 0x170
 }
 
-static_assert!(NdsHeader::SIZE == 512);
+static_assert!(NdsHeader::SIZE == 0x200);
 
 impl NdsHeader {
     /// The size of a header in bytes.
     pub const SIZE: usize = mem::size_of::<Self>();
 
     pub(crate) fn read(rom: &[u8]) -> NdsHeader {
-        assert!(rom.len() >= NdsHeader::SIZE);
+        #[inline(always)]
+        #[cfg(target_endian = "little")]
+        unsafe fn read(bytes: &[u8]) -> NdsHeader {
+            mem::transmute_copy(&*(bytes.as_ptr() as *const [u8; NdsHeader::SIZE]))
+        }
 
-        let mut header = MaybeUninit::uninit();
+        #[inline(always)]
+        #[cfg(target_endian = "big")]
+        unsafe fn read(bytes: &[u8]) -> NdsHeader {
+            panic!("big-endian targets are not yet supported")
+        }
 
-        let dst = header.as_mut_ptr() as *mut u8;
-        // SAFETY: `dst` is valid for writes of `HEADER_SIZE` bytes.
-        //         `rom` is valid for reads of `HEADER_SIZE` bytes.
-        //         `dst` and `rom` are nonoverlapping.
-        unsafe { dst.copy_from_nonoverlapping(rom.as_ptr(), NdsHeader::SIZE) };
+        let bytes = &rom[0..NdsHeader::SIZE];
 
-        // FIXME: Fix u16 and u32 values on big-endian systems.
-
-        // SAFETY: `header` is initialised with info copied from ROM.
-        unsafe { header.assume_init() }
+        // SAFETY: `bytes` is valid for reads of `NdsHeader::SIZE` bytes.
+        unsafe { read(bytes) }
     }
 
     /// Returns `true` if the ROM is a DSi ROM.

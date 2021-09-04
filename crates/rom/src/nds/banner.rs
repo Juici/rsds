@@ -1,5 +1,6 @@
+use std::mem;
+
 use common::str::Utf16;
-use std::mem::{self, MaybeUninit};
 
 /// NDS ROM icon/title.
 ///
@@ -94,24 +95,28 @@ pub struct NdsBanner {
     pub dsi_sequence: [u16; 64], // 0x2340
 }
 
-static_assert!(NdsBanner::SIZE == 9152);
+static_assert!(NdsBanner::SIZE == 0x23C0);
 
 impl NdsBanner {
     /// The size of a banner in bytes.
     pub const SIZE: usize = mem::size_of::<Self>();
 
     pub(crate) fn read(rom: &[u8], offset: usize) -> NdsBanner {
-        assert!(rom.len() >= offset + NdsBanner::SIZE);
+        #[inline(always)]
+        #[cfg(target_endian = "little")]
+        unsafe fn read(bytes: &[u8]) -> NdsBanner {
+            mem::transmute_copy(&*(bytes.as_ptr() as *const [u8; NdsBanner::SIZE]))
+        }
 
-        let mut banner = MaybeUninit::uninit();
+        #[inline(always)]
+        #[cfg(target_endian = "big")]
+        unsafe fn read(bytes: &[u8]) -> NdsBanner {
+            panic!("big-endian targets are not yet supported")
+        }
 
-        let dst = banner.as_mut_ptr() as *mut u8;
-        // SAFETY: `dst` is valid for writes of `BANNER_SIZE` bytes.
-        //         `rom + offset` is valid for reads of `BANNER_SIZE` bytes.
-        //         `dst` and `rom` are nonoverlapping.
-        unsafe { dst.copy_from_nonoverlapping(rom.as_ptr().add(offset), NdsBanner::SIZE) };
+        let bytes = &rom[offset..(offset + NdsBanner::SIZE)];
 
-        // SAFETY: `banner` is initialised with info copied from ROM.
-        unsafe { banner.assume_init() }
+        // SAFETY: `bytes` is valid for reads of `NdsBanner::SIZE` bytes.
+        unsafe { read(bytes) }
     }
 }
