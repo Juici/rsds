@@ -5,7 +5,7 @@
 pub static REGIONS: phf::Map<u8, &'static str> = phf::phf_map! {
     b'D' => "NOE",
     b'E' => "USA",
-    b'F' => "NOE", // Or "FRA".
+    b'F' => "FRA",
     b'H' => "HOL",
     b'I' => "ITA",
     b'J' => "JPN",
