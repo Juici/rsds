@@ -260,24 +260,30 @@ impl Key1 {
         key1
     }
 
-    // TODO: Check encrypt/decrypt block function performance.
-
     /// Encrypts a block of 8 bytes.
     pub fn encrypt_block(&self, block: &mut [u8]) {
-        let l = LittleEndian::read_u32(&block[..4]);
-        let r = LittleEndian::read_u32(&block[4..]);
+        let block = &mut block[0..8];
+
+        let l = LittleEndian::read_u32(&block[0..4]);
+        let r = LittleEndian::read_u32(&block[4..8]);
+
         let (l, r) = self.encrypt(l, r);
-        LittleEndian::write_u32(&mut block[..4], l);
-        LittleEndian::write_u32(&mut block[4..], r);
+
+        LittleEndian::write_u32(&mut block[0..4], l);
+        LittleEndian::write_u32(&mut block[4..8], r);
     }
 
     /// Decrypts a block of 8 bytes.
     pub fn decrypt_block(&self, block: &mut [u8]) {
-        let l = LittleEndian::read_u32(&block[..4]);
-        let r = LittleEndian::read_u32(&block[4..]);
+        let block = &mut block[0..8];
+
+        let l = LittleEndian::read_u32(&block[0..4]);
+        let r = LittleEndian::read_u32(&block[4..8]);
+
         let (l, r) = self.decrypt(l, r);
-        LittleEndian::write_u32(&mut block[..4], l);
-        LittleEndian::write_u32(&mut block[4..], r);
+
+        LittleEndian::write_u32(&mut block[0..4], l);
+        LittleEndian::write_u32(&mut block[4..8], r);
     }
 
     /// Encrypts the secure area of the ARM9 boot code.
