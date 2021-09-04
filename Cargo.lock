@@ -39,6 +39,14 @@ name = "common"
 version = "0.0.0"
 
 [[package]]
+name = "emu"
+version = "0.0.0"
+dependencies = [
+ "log",
+ "rom",
+]
+
+[[package]]
 name = "env_logger"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
