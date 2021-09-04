@@ -2962,7 +2962,7 @@ roms = [
     { game_code = 0x4A435A41, rom_size = 0x00800000, sram_kind = 0x00000001 },
     { game_code = 0x4A435A42, rom_size = 0x02000000, sram_kind = 0x00000003 },
     { game_code = 0x4A435A43, rom_size = 0x02000000, sram_kind = 0x00000002 },
-    { game_code = 0x4A435A55, rom_size = 0x08000000, sram_kind = 0xFFFFFFFF },
+    { game_code = 0x4A435A55, rom_size = 0x08000000, sram_kind = 0x00000000 },
     { game_code = 0x4A435A59, rom_size = 0x01000000, sram_kind = 0x00000002 },
     { game_code = 0x4A443241, rom_size = 0x02000000, sram_kind = 0x00000002 },
     { game_code = 0x4A443243, rom_size = 0x04000000, sram_kind = 0x00000002 },
