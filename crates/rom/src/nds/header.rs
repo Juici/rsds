@@ -247,12 +247,12 @@ impl NdsHeader {
 
     /// Returns `true` if the ROM has Infrared (IR).
     pub fn has_ir(&self) -> bool {
-        self.game_code.chars[0] == b'I'
+        self.game_code.buf[0] == b'I'
     }
 
     /// Returns `true` if the ROM a homebrew.
     pub fn is_homebrew(&self) -> bool {
-        self.arm9_rom_offset < 0x4000 || self.game_code.chars == [0x23, 0x23, 0x23, 0x23]
+        self.arm9_rom_offset < 0x4000 || self.game_code.buf == [0x23, 0x23, 0x23, 0x23]
     }
 
     /// Returns `true` if the ROM has a secure area.
@@ -262,7 +262,7 @@ impl NdsHeader {
 
     /// Returns the game code as a `u32`.
     pub fn game_code(&self) -> u32 {
-        u32::from_le_bytes(self.game_code.chars)
+        u32::from_le_bytes(self.game_code.buf)
     }
 
     /// Returns the region as determined from the game code.
